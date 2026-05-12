@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PedQuiz AVC</title>
+  <style>
+    :root { font-family: Inter, system-ui, Arial, sans-serif; }
+    body { margin: 0; background: #f5f7fb; color: #1f2937; }
+    .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.06); padding: 18px; margin-bottom: 16px; }
+    h1 { margin-top: 0; }
+    select, button, input[type="file"] { padding: 10px; border-radius: 8px; border: 1px solid #d1d5db; }
+    button { cursor: pointer; border: none; background: #2563eb; color: #fff; }
+    button.secondary { background: #6b7280; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .question { font-weight: 600; margin-bottom: 10px; }
+    .opt { margin: 8px 0; }
+    .opt button { width: 100%; text-align: left; background: #eef2ff; color: #111827; }
+    .opt button.correct { background: #16a34a; color: white; }
+    .opt button.wrong { background: #dc2626; color: white; }
+    .muted { color: #6b7280; font-size: .9rem; }
+    .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: .8rem; background: #e5e7eb; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>PedQuiz AVC</h1>
+      <p class="muted">Carregue seus arquivos Markdown com questões de múltipla escolha e treine com ordem aleatória de perguntas e alternativas.</p>
+      <div class="row">
+        <input id="mdFiles" type="file" multiple accept=".md,.markdown,text/markdown" />
+        <label for="fallbackCorrect">Letra correta padrão:</label>
+        <select id="fallbackCorrect">
+          <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option>
+        </select>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <label for="quizSelector">Quiz:</label>
+        <select id="quizSelector"></select>
+        <button id="startBtn">Iniciar</button>
+        <button id="nextBtn" class="secondary">Próxima</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div class="pill" id="progress">0/0</div>
+        <div class="pill" id="score">Acertos: 0</div>
+      </div>
+      <div id="quizArea" style="margin-top: 12px;"></div>
+    </div>
+  </div>
+
+<script>
+const state = { banks: [], selectedBank: null, queue: [], idx: 0, score: 0, answered: false };
+
+function shuffle(arr){ return [...arr].sort(() => Math.random() - 0.5); }
+
+function normalizeOptionLine(line){
+  return line.replace(/^[-*]\s*/, '').replace(/^\(?[A-Ea-e]\)?[\).:-]\s*/, '').trim();
+}
+
+function parseMarkdown(md, fallbackLetter='A'){
+  const lines = md.split(/\r?\n/);
+  const questions = [];
+  let buffer = [];
+
+  function flush(){
+    if (!buffer.length) return;
+    const raw = buffer.join('\n').trim();
+    const blines = raw.split(/\r?\n/).filter(Boolean);
+    const qLine = blines.find(l => !/^[-*]\s|^\(?[A-Ea-e]\)?[\).:-]/.test(l)) || blines[0];
+    const optionsLines = blines.filter(l => /^[-*]\s|^\(?[A-Ea-e]\)?[\).:-]/.test(l));
+    const options = optionsLines.map((l, i) => {
+      const clean = normalizeOptionLine(l).replace(/\s*\(correta\)\s*/i, '').replace(/\*\*correta\*\*/i, '');
+      const explicit = /\(correta\)|\[x\]|\*correta\*/i.test(l);
+      const letter = String.fromCharCode(65+i);
+      return { text: clean, explicit, letter };
+    }).filter(o => o.text);
+    if (options.length >= 2) {
+      let correctIndex = options.findIndex(o => o.explicit);
+      if (correctIndex === -1) {
+        correctIndex = options.findIndex(o => o.letter.toUpperCase() === fallbackLetter.toUpperCase());
+      }
+      if (correctIndex === -1) correctIndex = 0;
+      questions.push({
+        question: qLine.replace(/^#+\s*/, '').replace(/^\d+[\).]\s*/, '').trim(),
+        options,
+        correctIndex
+      });
+    }
+    buffer = [];
+  }
+
+  for (const line of lines) {
+    if (!line.trim()) { flush(); continue; }
+    buffer.push(line);
+  }
+  flush();
+  return questions;
+}
+
+function renderQuestion(){
+  const area = document.getElementById('quizArea');
+  if (!state.queue.length) { area.innerHTML = '<p>Nenhuma questão encontrada.</p>'; return; }
+  const q = state.queue[state.idx];
+  const options = shuffle(q.options.map((o, originalIdx)=>({...o, originalIdx})));
+  area.innerHTML = `
+    <div class="question">${q.question}</div>
+    ${options.map((o,i)=>`<div class="opt"><button data-i="${i}">${o.text}</button></div>`).join('')}
+  `;
+  state.answered = false;
+
+  [...area.querySelectorAll('button')].forEach((btn, i) => {
+    btn.addEventListener('click', () => {
+      if (state.answered) return;
+      state.answered = true;
+      const chosen = options[i];
+      const isCorrect = chosen.originalIdx === q.correctIndex;
+      if (isCorrect) { state.score += 1; btn.classList.add('correct'); }
+      else {
+        btn.classList.add('wrong');
+        const correctBtn = [...area.querySelectorAll('button')].find((_, bi) => options[bi].originalIdx === q.correctIndex);
+        if (correctBtn) correctBtn.classList.add('correct');
+      }
+      updateMeta();
+    });
+  });
+  updateMeta();
+}
+
+function updateMeta(){
+  document.getElementById('progress').textContent = `${Math.min(state.idx+1, state.queue.length)}/${state.queue.length}`;
+  document.getElementById('score').textContent = `Acertos: ${state.score}`;
+}
+
+document.getElementById('mdFiles').addEventListener('change', async (e) => {
+  const files = [...e.target.files];
+  const fb = document.getElementById('fallbackCorrect').value;
+  state.banks = [];
+  for (const f of files) {
+    const txt = await f.text();
+    state.banks.push({ name: f.name, questions: parseMarkdown(txt, fb) });
+  }
+  const sel = document.getElementById('quizSelector');
+  sel.innerHTML = state.banks.map((b,i)=>`<option value="${i}">${b.name} (${b.questions.length} questões)</option>`).join('');
+});
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  const idx = Number(document.getElementById('quizSelector').value || 0);
+  const bank = state.banks[idx];
+  if (!bank) return alert('Carregue ao menos um arquivo .md');
+  state.selectedBank = bank;
+  state.queue = shuffle(bank.questions);
+  state.idx = 0;
+  state.score = 0;
+  renderQuestion();
+});
+
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (!state.queue.length) return;
+  state.idx = (state.idx + 1) % state.queue.length;
+  renderQuestion();
+});
+</script>
+</body>
+</html>
