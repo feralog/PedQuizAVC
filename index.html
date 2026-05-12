@@ -1,168 +1,497 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PedQuiz AVC</title>
-  <style>
-    :root { font-family: Inter, system-ui, Arial, sans-serif; }
-    body { margin: 0; background: #f5f7fb; color: #1f2937; }
-    .container { max-width: 960px; margin: 0 auto; padding: 24px; }
-    .card { background: white; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.06); padding: 18px; margin-bottom: 16px; }
-    h1 { margin-top: 0; }
-    select, button, input[type="file"] { padding: 10px; border-radius: 8px; border: 1px solid #d1d5db; }
-    button { cursor: pointer; border: none; background: #2563eb; color: #fff; }
-    button.secondary { background: #6b7280; }
-    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    .question { font-weight: 600; margin-bottom: 10px; }
-    .opt { margin: 8px 0; }
-    .opt button { width: 100%; text-align: left; background: #eef2ff; color: #111827; }
-    .opt button.correct { background: #16a34a; color: white; }
-    .opt button.wrong { background: #dc2626; color: white; }
-    .muted { color: #6b7280; font-size: .9rem; }
-    .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: .8rem; background: #e5e7eb; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quizzes — Pediatria · UNISA</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f4f8;
+    color: #1a1a1a;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #1e3a5f;
+    color: white;
+    padding: 20px 30px;
+    text-align: center;
+  }
+  header h1 { font-size: 22px; margin-bottom: 4px; }
+  header p  { font-size: 13px; opacity: 0.8; }
+
+  /* ── Seletor de quiz ── */
+  #selectorScreen {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 0 16px;
+  }
+  #selectorScreen h2 {
+    font-size: 18px; color: #1e3a5f;
+    margin-bottom: 20px; text-align: center;
+  }
+  .quiz-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+  }
+  .quiz-card {
+    background: white;
+    border-radius: 12px;
+    padding: 28px 20px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    border: 2px solid transparent;
+  }
+  .quiz-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.13);
+    border-color: #2563eb;
+  }
+  .quiz-card .icon { font-size: 36px; margin-bottom: 12px; }
+  .quiz-card h3 { font-size: 15px; color: #1e3a5f; margin-bottom: 6px; }
+  .quiz-card small { font-size: 12px; color: #888; }
+
+  /* ── Área do quiz ── */
+  .quiz-container {
+    max-width: 800px;
+    margin: 30px auto;
+    padding: 0 16px 60px;
+  }
+
+  #startScreen {
+    background: white; border-radius: 12px; padding: 40px;
+    text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  #startScreen h2 { font-size: 20px; color: #1e3a5f; margin-bottom: 12px; }
+  #startScreen p  { font-size: 14px; color: #555; margin-bottom: 24px; line-height: 1.6; }
+
+  .progress-bar-bg   { background: #dde3ea; border-radius: 8px; height: 8px; margin-bottom: 8px; }
+  .progress-bar-fill { background: #2563eb; height: 8px; border-radius: 8px; transition: width 0.4s; }
+  .progress-label    { font-size: 12px; color: #666; margin-bottom: 20px; }
+
+  .question-card {
+    background: white; border-radius: 12px; padding: 28px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 16px;
+  }
+  .question-number {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    color: #2563eb; letter-spacing: 1px; margin-bottom: 10px;
+  }
+  .question-text { font-size: 15px; line-height: 1.65; color: #1a1a1a; margin-bottom: 22px; }
+
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .option-btn {
+    background: #f7f9fc; border: 2px solid #dde3ea; border-radius: 8px;
+    padding: 12px 16px; text-align: left; font-size: 14px; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s; line-height: 1.5;
+  }
+  .option-btn:hover:not(:disabled) { background: #e8f0fe; border-color: #2563eb; }
+  .option-btn.correct { background: #d1fae5; border-color: #16a34a; color: #166534; }
+  .option-btn.wrong   { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
+  .option-btn:disabled { cursor: default; }
+
+  .explanation {
+    display: none; background: #f0fdf4; border-left: 4px solid #16a34a;
+    border-radius: 0 8px 8px 0; padding: 14px 16px; margin-top: 14px;
+    font-size: 13px; line-height: 1.6; color: #166534;
+  }
+  .explanation.show { display: block; }
+
+  .btn-next {
+    display: none; margin-top: 18px; background: #2563eb; color: white;
+    border: none; border-radius: 8px; padding: 12px 28px;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s;
+  }
+  .btn-next:hover { background: #1d4ed8; }
+  .btn-next.show  { display: inline-block; }
+
+  .btn-primary {
+    background: #2563eb; color: white; border: none; border-radius: 8px;
+    padding: 14px 36px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s; margin: 6px;
+  }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-secondary {
+    background: #e5e7eb; color: #374151; border: none; border-radius: 8px;
+    padding: 14px 36px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s; margin: 6px;
+  }
+  .btn-secondary:hover { background: #d1d5db; }
+
+  #resultScreen {
+    display: none; background: white; border-radius: 12px; padding: 40px;
+    text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .score-circle {
+    width: 120px; height: 120px; border-radius: 50%; background: #1e3a5f; color: white;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; margin: 0 auto 20px;
+  }
+  .score-circle .score-num   { font-size: 32px; font-weight: 700; }
+  .score-circle .score-denom { font-size: 13px; opacity: 0.8; }
+  #resultScreen h2 { font-size: 20px; color: #1e3a5f; margin-bottom: 10px; }
+  #resultScreen p  { font-size: 14px; color: #555; margin-bottom: 24px; }
+
+  .stats-row { display: flex; justify-content: center; gap: 24px; margin-bottom: 28px; flex-wrap: wrap; }
+  .stat-box  { background: #f7f9fc; border-radius: 8px; padding: 12px 20px; text-align: center; min-width: 90px; }
+  .stat-box .stat-val { font-size: 22px; font-weight: 700; }
+  .stat-box .stat-lbl { font-size: 11px; color: #888; margin-top: 2px; }
+  .stat-box.green .stat-val { color: #16a34a; }
+  .stat-box.red   .stat-val { color: #dc2626; }
+  .stat-box.blue  .stat-val { color: #2563eb; }
+
+  #loadingMsg { text-align: center; padding: 40px; font-size: 15px; color: #555; }
+</style>
 </head>
 <body>
-  <div class="container">
-    <div class="card">
-      <h1>PedQuiz AVC</h1>
-      <p class="muted">Carregue seus arquivos Markdown com questões de múltipla escolha e treine com ordem aleatória de perguntas e alternativas.</p>
-      <div class="row">
-        <input id="mdFiles" type="file" multiple accept=".md,.markdown,text/markdown" />
-        <label for="fallbackCorrect">Letra correta padrão:</label>
-        <select id="fallbackCorrect">
-          <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option>
-        </select>
-      </div>
-      <div class="row" style="margin-top:10px;">
-        <label for="quizSelector">Quiz:</label>
-        <select id="quizSelector"></select>
-        <button id="startBtn">Iniciar</button>
-        <button id="nextBtn" class="secondary">Próxima</button>
-      </div>
-    </div>
 
-    <div class="card">
-      <div class="row" style="justify-content:space-between;">
-        <div class="pill" id="progress">0/0</div>
-        <div class="pill" id="score">Acertos: 0</div>
-      </div>
-      <div id="quizArea" style="margin-top: 12px;"></div>
+<header>
+  <h1>Quizzes — Pediatria</h1>
+  <p>Pediatria — Prof. Daniel Servigia Domingos — Universidade Santo Amaro</p>
+</header>
+
+<!-- Tela de seleção -->
+<div id="selectorScreen">
+  <h2>Selecione o quiz</h2>
+  <div class="quiz-cards">
+    <div class="quiz-card" onclick="loadQuiz('diarreia')">
+      <div class="icon">🦠</div>
+      <h3>Diarreia e Constipação</h3>
+      <small>30 questões</small>
+    </div>
+    <div class="quiz-card" onclick="loadQuiz('drge')">
+      <div class="icon">🍼</div>
+      <h3>DRGE / APLV / EoE</h3>
+      <small>30 questões</small>
+    </div>
+    <div class="quiz-card" onclick="loadQuiz('meningites')">
+      <div class="icon">🧠</div>
+      <h3>Meningites Bacterianas</h3>
+      <small>30 questões</small>
+    </div>
+    <div class="quiz-card" onclick="loadQuiz('tb')">
+      <div class="icon">🫁</div>
+      <h3>Tuberculose Pediátrica</h3>
+      <small>30 questões</small>
+    </div>
+  </div>
+</div>
+
+<!-- Área do quiz (oculta inicialmente) -->
+<div class="quiz-container" id="quizArea" style="display:none;">
+  <div id="loadingMsg">Carregando questões...</div>
+
+  <div id="startScreen" style="display:none;">
+    <h2 id="quizTitle"></h2>
+    <p id="quizDesc"></p>
+    <button class="btn-primary" onclick="startQuiz()">Começar Quiz</button>
+    <button class="btn-secondary" onclick="backToSelector()">← Voltar</button>
+  </div>
+
+  <div id="quizPlay" style="display:none;">
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+    </div>
+    <div class="progress-label" id="progressLabel"></div>
+
+    <div class="question-card" id="questionCard">
+      <div class="question-number" id="questionNumber"></div>
+      <div class="question-text"  id="questionText"></div>
+      <div class="options"        id="optionsContainer"></div>
+      <div class="explanation"    id="explanation"></div>
+      <button class="btn-next"    id="btnNext" onclick="nextQuestion()">Próxima questão →</button>
     </div>
   </div>
 
+  <div id="resultScreen">
+    <div class="score-circle">
+      <span class="score-num"   id="scoreFinal">0</span>
+      <span class="score-denom" id="scoreDenom">de 30</span>
+    </div>
+    <h2 id="resultTitle"></h2>
+    <p  id="resultMsg"></p>
+    <div class="stats-row">
+      <div class="stat-box green"><div class="stat-val" id="statCorrect">0</div><div class="stat-lbl">Acertos</div></div>
+      <div class="stat-box red">  <div class="stat-val" id="statWrong">0</div>  <div class="stat-lbl">Erros</div></div>
+      <div class="stat-box blue"> <div class="stat-val" id="statPct">0%</div>   <div class="stat-lbl">Aproveitamento</div></div>
+    </div>
+    <button class="btn-primary"   onclick="startQuiz()">Refazer Quiz</button>
+    <button class="btn-secondary" onclick="backToSelector()">← Escolher outro quiz</button>
+  </div>
+</div>
+
 <script>
-const state = { banks: [], selectedBank: null, queue: [], idx: 0, score: 0, answered: false };
+// ════════════════════════════════════════════════════════════
+//  PARSER DE MARKDOWN → array de questões
+// ════════════════════════════════════════════════════════════
+function parseMarkdown(text) {
+  // 1. Normaliza quebras de linha
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-function shuffle(arr){ return [...arr].sort(() => Math.random() - 0.5); }
+  // 2. Remove barras invertidas de escape (ex: \### → ###, \*\* → **, \--- → ---)
+  //    Isso cobre arquivos gerados com markdown "seguro" onde símbolos são escapados
+  text = text.replace(/\\(.)/g, '$1');
 
-function normalizeOptionLine(line){
-  return line.replace(/^[-*]\s*/, '').replace(/^\(?[A-Ea-e]\)?[\).:-]\s*/, '').trim();
-}
-
-function parseMarkdown(md, fallbackLetter='A'){
-  const lines = md.split(/\r?\n/);
   const questions = [];
-  let buffer = [];
 
-  function flush(){
-    if (!buffer.length) return;
-    const raw = buffer.join('\n').trim();
-    const blines = raw.split(/\r?\n/).filter(Boolean);
-    const qLine = blines.find(l => !/^[-*]\s|^\(?[A-Ea-e]\)?[\).:-]/.test(l)) || blines[0];
-    const optionsLines = blines.filter(l => /^[-*]\s|^\(?[A-Ea-e]\)?[\).:-]/.test(l));
-    const options = optionsLines.map((l, i) => {
-      const clean = normalizeOptionLine(l).replace(/\s*\(correta\)\s*/i, '').replace(/\*\*correta\*\*/i, '');
-      const explicit = /\(correta\)|\[x\]|\*correta\*/i.test(l);
-      const letter = String.fromCharCode(65+i);
-      return { text: clean, explicit, letter };
-    }).filter(o => o.text);
-    if (options.length >= 2) {
-      let correctIndex = options.findIndex(o => o.explicit);
-      if (correctIndex === -1) {
-        correctIndex = options.findIndex(o => o.letter.toUpperCase() === fallbackLetter.toUpperCase());
+  // 3. Divide em blocos pelo separador ---
+  const blocks = text.split(/\n-{3,}\n/).map(b => b.trim()).filter(Boolean);
+
+  for (const block of blocks) {
+    // Remove todos os asteriscos de negrito/itálico do bloco
+    const clean = block.replace(/\*/g, '');
+
+    // ── Encontra a letra do gabarito ──
+    const gabMatch = clean.match(/Gabarito\s*[:\-]?\s*([A-E])\b/i);
+    if (!gabMatch) continue;
+    const correctLetter = gabMatch[1].toUpperCase();
+
+    // ── Explicação: tudo após "Comentário:" até o fim do bloco ──
+    const expIdx = clean.search(/Comentário\s*[:\-]?/i);
+    const explanation = expIdx >= 0
+      ? clean.substring(expIdx).replace(/Comentário\s*[:\-]?/i, '').trim()
+      : '';
+
+    // ── Conteúdo antes do Gabarito ──
+    const gabIdx = clean.search(/Gabarito\s*[:\-]?\s*[A-E]/i);
+    const beforeGab = clean.substring(0, gabIdx).trim();
+    const lines = beforeGab.split('\n').map(l => l.trim()).filter(Boolean);
+
+    // ── Separa enunciado das alternativas ──
+    const optMap = {};
+    const questionLines = [];
+    let currentLetter = '';
+    let currentText   = '';
+
+    for (const line of lines) {
+      // Ignora cabeçalhos markdown (# ## ###)
+      if (/^#{1,4}\s/.test(line)) continue;
+
+      // Detecta início de alternativa: A) ou A.
+      const optMatch = line.match(/^([A-E])[\).\]\s]\s*(.*)/i);
+      if (optMatch && optMatch[1] === optMatch[1].toUpperCase()) {
+        if (currentLetter) optMap[currentLetter] = currentText.trim();
+        currentLetter = optMatch[1].toUpperCase();
+        currentText   = optMatch[2];
+      } else if (currentLetter) {
+        currentText += ' ' + line;
+      } else {
+        // Linha do enunciado — ignora título "Questão N —"
+        if (!/^Questão\s+\d+/i.test(line) && line.length > 0) {
+          questionLines.push(line);
+        }
       }
-      if (correctIndex === -1) correctIndex = 0;
-      questions.push({
-        question: qLine.replace(/^#+\s*/, '').replace(/^\d+[\).]\s*/, '').trim(),
-        options,
-        correctIndex
-      });
     }
-    buffer = [];
-  }
+    if (currentLetter) optMap[currentLetter] = currentText.trim();
 
-  for (const line of lines) {
-    if (!line.trim()) { flush(); continue; }
-    buffer.push(line);
+    // ── Monta opções na ordem A B C D E ──
+    const letters = ['A','B','C','D','E'];
+    const opts = letters.map(l => optMap[l]).filter(Boolean);
+    const correctIdx = letters.indexOf(correctLetter);
+
+    // ── Enunciado final ──
+    const question = questionLines.join(' ').trim();
+
+    if (question && opts.length >= 2 && correctIdx >= 0 && correctIdx < opts.length) {
+      questions.push({ question, options: opts, correctIndex: correctIdx, explanation });
+    }
   }
-  flush();
   return questions;
 }
 
-function renderQuestion(){
-  const area = document.getElementById('quizArea');
-  if (!state.queue.length) { area.innerHTML = '<p>Nenhuma questão encontrada.</p>'; return; }
-  const q = state.queue[state.idx];
-  const options = shuffle(q.options.map((o, originalIdx)=>({...o, originalIdx})));
-  area.innerHTML = `
-    <div class="question">${q.question}</div>
-    ${options.map((o,i)=>`<div class="opt"><button data-i="${i}">${o.text}</button></div>`).join('')}
-  `;
-  state.answered = false;
-
-  [...area.querySelectorAll('button')].forEach((btn, i) => {
-    btn.addEventListener('click', () => {
-      if (state.answered) return;
-      state.answered = true;
-      const chosen = options[i];
-      const isCorrect = chosen.originalIdx === q.correctIndex;
-      if (isCorrect) { state.score += 1; btn.classList.add('correct'); }
-      else {
-        btn.classList.add('wrong');
-        const correctBtn = [...area.querySelectorAll('button')].find((_, bi) => options[bi].originalIdx === q.correctIndex);
-        if (correctBtn) correctBtn.classList.add('correct');
-      }
-      updateMeta();
-    });
-  });
-  updateMeta();
-}
-
-function updateMeta(){
-  document.getElementById('progress').textContent = `${Math.min(state.idx+1, state.queue.length)}/${state.queue.length}`;
-  document.getElementById('score').textContent = `Acertos: ${state.score}`;
-}
-
-document.getElementById('mdFiles').addEventListener('change', async (e) => {
-  const files = [...e.target.files];
-  const fb = document.getElementById('fallbackCorrect').value;
-  state.banks = [];
-  for (const f of files) {
-    const txt = await f.text();
-    state.banks.push({ name: f.name, questions: parseMarkdown(txt, fb) });
+// ════════════════════════════════════════════════════════════
+//  CONFIGURAÇÃO DOS QUIZZES
+// ════════════════════════════════════════════════════════════
+const QUIZ_CONFIG = {
+  diarreia: {
+    file: 'Quiz Diarreia e Constipacao.md',
+    title: 'Diarreia e Constipação em Pediatria',
+    desc: '30 questões sobre diarreia aguda, constipação funcional, desidratação, tratamento e casos clínicos.<br><br>Responda cada questão e veja a explicação antes de avançar.',
+  },
+  drge: {
+    file: 'Quiz DRGE.md',
+    title: 'DRGE, APLV e Esofagite Eosinofílica',
+    desc: '30 questões sobre refluxo gastroesofágico, alergia à proteína do leite de vaca e esofagite eosinofílica em pediatria.',
+  },
+  meningites: {
+    file: 'Quiz Meningites.md',
+    title: 'Meningites Bacterianas na Criança',
+    desc: '30 questões de nível internato/residência sobre epidemiologia, diagnóstico, tratamento e profilaxia das meningites bacterianas pediátricas.',
+  },
+  tb: {
+    file: 'Quiz TB.md',
+    title: 'Tuberculose Pediátrica',
+    desc: '30 questões sobre diagnóstico, escore de Sant\'Anna, ILTB, tratamento e farmacologia da tuberculose em crianças e adolescentes.',
   }
-  const sel = document.getElementById('quizSelector');
-  sel.innerHTML = state.banks.map((b,i)=>`<option value="${i}">${b.name} (${b.questions.length} questões)</option>`).join('');
-});
+};
 
-document.getElementById('startBtn').addEventListener('click', () => {
-  const idx = Number(document.getElementById('quizSelector').value || 0);
-  const bank = state.banks[idx];
-  if (!bank) return alert('Carregue ao menos um arquivo .md');
-  state.selectedBank = bank;
-  state.queue = shuffle(bank.questions);
-  state.idx = 0;
-  state.score = 0;
-  renderQuestion();
-});
+// ════════════════════════════════════════════════════════════
+//  ESTADO GLOBAL
+// ════════════════════════════════════════════════════════════
+let rawQuestions = [];
+let questions    = [];
+let currentIndex = 0;
+let score        = 0;
+let currentQuizKey = '';
 
-document.getElementById('nextBtn').addEventListener('click', () => {
-  if (!state.queue.length) return;
-  state.idx = (state.idx + 1) % state.queue.length;
+// ════════════════════════════════════════════════════════════
+//  UTILITÁRIOS
+// ════════════════════════════════════════════════════════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function shuffleQuestion(q) {
+  const correctText = q.options[q.correctIndex];
+  const shuffled    = shuffle(q.options);
+  return { ...q, options: shuffled, correctIndex: shuffled.indexOf(correctText) };
+}
+
+function prepareQuestions() {
+  return shuffle(rawQuestions).map(shuffleQuestion);
+}
+
+// ════════════════════════════════════════════════════════════
+//  NAVEGAÇÃO
+// ════════════════════════════════════════════════════════════
+function backToSelector() {
+  document.getElementById('selectorScreen').style.display = '';
+  document.getElementById('quizArea').style.display = 'none';
+}
+
+function loadQuiz(key) {
+  currentQuizKey = key;
+  const cfg = QUIZ_CONFIG[key];
+  document.getElementById('selectorScreen').style.display = 'none';
+  document.getElementById('quizArea').style.display = '';
+  document.getElementById('loadingMsg').style.display = '';
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('quizPlay').style.display = 'none';
+  document.getElementById('resultScreen').style.display = 'none';
+
+  fetch(cfg.file)
+    .then(r => { if (!r.ok) throw new Error('Arquivo não encontrado: ' + cfg.file); return r.text(); })
+    .then(text => {
+      rawQuestions = parseMarkdown(text);
+      if (rawQuestions.length === 0) throw new Error('Nenhuma questão encontrada em ' + cfg.file);
+      document.getElementById('loadingMsg').style.display = 'none';
+      document.getElementById('quizTitle').textContent = cfg.title;
+      document.getElementById('quizDesc').innerHTML =
+        rawQuestions.length + ' questões disponíveis. ' + cfg.desc;
+      document.getElementById('startScreen').style.display = '';
+    })
+    .catch(err => {
+      document.getElementById('loadingMsg').textContent =
+        '⚠️ Erro ao carregar: ' + err.message +
+        '. Certifique-se de que os arquivos .md estão na mesma pasta que este HTML.';
+    });
+}
+
+function startQuiz() {
+  questions    = prepareQuestions();
+  currentIndex = 0;
+  score        = 0;
+  document.getElementById('startScreen').style.display   = 'none';
+  document.getElementById('resultScreen').style.display  = 'none';
+  document.getElementById('quizPlay').style.display      = '';
   renderQuestion();
-});
+}
+
+// ════════════════════════════════════════════════════════════
+//  RENDERIZAÇÃO
+// ════════════════════════════════════════════════════════════
+function renderQuestion() {
+  const q     = questions[currentIndex];
+  const total = questions.length;
+
+  document.getElementById('progressBar').style.width =
+    ((currentIndex / total) * 100) + '%';
+  document.getElementById('progressLabel').textContent =
+    'Questão ' + (currentIndex + 1) + ' de ' + total;
+  document.getElementById('questionNumber').textContent =
+    'Questão ' + (currentIndex + 1);
+  document.getElementById('questionText').textContent = q.question;
+
+  const container = document.getElementById('optionsContainer');
+  container.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className   = 'option-btn';
+    btn.textContent = ['A','B','C','D','E'][i] + ') ' + opt;
+    btn.onclick     = () => selectAnswer(i);
+    container.appendChild(btn);
+  });
+
+  const exp = document.getElementById('explanation');
+  exp.classList.remove('show');
+  exp.textContent = '';
+  document.getElementById('btnNext').classList.remove('show');
+}
+
+function selectAnswer(selected) {
+  const q       = questions[currentIndex];
+  const buttons = document.querySelectorAll('.option-btn');
+  buttons.forEach(b => b.disabled = true);
+
+  if (selected === q.correctIndex) {
+    buttons[selected].classList.add('correct');
+    score++;
+  } else {
+    buttons[selected].classList.add('wrong');
+    buttons[q.correctIndex].classList.add('correct');
+  }
+
+  const exp = document.getElementById('explanation');
+  exp.textContent = q.explanation;
+  exp.classList.add('show');
+
+  const btn = document.getElementById('btnNext');
+  btn.textContent = currentIndex < questions.length - 1
+    ? 'Próxima questão →' : 'Ver resultado';
+  btn.classList.add('show');
+}
+
+function nextQuestion() {
+  currentIndex++;
+  if (currentIndex < questions.length) {
+    renderQuestion();
+  } else {
+    showResult();
+  }
+}
+
+function showResult() {
+  document.getElementById('quizPlay').style.display = 'none';
+  document.getElementById('resultScreen').style.display = '';
+
+  const total = questions.length;
+  const pct   = Math.round((score / total) * 100);
+  document.getElementById('scoreFinal').textContent  = score;
+  document.getElementById('scoreDenom').textContent  = 'de ' + total;
+  document.getElementById('statCorrect').textContent = score;
+  document.getElementById('statWrong').textContent   = total - score;
+  document.getElementById('statPct').textContent     = pct + '%';
+
+  let title, msg;
+  if (pct >= 90)      { title = 'Excelente!';        msg = 'Domínio completo. Você está pronto para a prova.'; }
+  else if (pct >= 70) { title = 'Muito bom!';        msg = 'Bom domínio. Revise os pontos onde errou.'; }
+  else if (pct >= 50) { title = 'Razoável';          msg = 'Ainda há pontos a consolidar. Releia e refaça.'; }
+  else                { title = 'Precisa revisar';   msg = 'Recomendo reler o material antes de tentar novamente.'; }
+
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultMsg').textContent   = msg;
+}
 </script>
 </body>
 </html>
